@@ -16,6 +16,7 @@
 </head>
 <body>
 <title>Vuelta al Ring</title>
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap">
 <style>
@@ -69,6 +70,9 @@ header{flex-wrap:wrap}
 .vh{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none}
 .vh:focus-visible+*{outline:3px solid var(--accent)}
 .offbar{flex-basis:100%;font-size:12.5px;font-weight:600;padding:7px 10px;border-radius:9px;background:color-mix(in srgb,var(--warn) 15%,transparent);color:var(--warn)}
+.countdown{flex-basis:100%;display:flex;gap:8px}
+.countdown div{flex:1;padding:8px 10px;border-radius:10px;background:color-mix(in srgb,var(--accent) 9%,transparent);font-size:12px;color:var(--muted);line-height:1.25}
+.countdown b{display:block;font-family:var(--display);font-size:20px;color:var(--accent);font-variant-numeric:tabular-nums}
 .offbar.off{background:color-mix(in srgb,var(--bad) 12%,transparent);color:var(--bad)}
 .ready{border-radius:14px;padding:14px;display:grid;grid-template-columns:auto 1fr;gap:4px 12px;align-items:center;border:1px solid var(--line);background:var(--surface)}
 .ready .dot{width:16px;height:16px;border-radius:50%;background:var(--muted);grid-row:span 2}
@@ -240,6 +244,7 @@ nav.tabs button[aria-current="page"]{color:var(--accent)}
       <span class="phase" id="hdrPhase">–</span>
     </div>
     <div class="hdr-stats"><div><b id="hdrWeek">–</b>semana</div><div><b id="hdrDay">–</b>día</div></div>
+    <div id="countdown" class="countdown"></div>
     <div id="offBar" class="offbar" role="status" hidden></div>
   </header>
 
@@ -980,6 +985,9 @@ function renderHeader(){
   $("hdrWeek").textContent = weekOf(now);
   $("hdrDay").textContent = daysSince(now);
   $("hdrPhase").textContent = ph.name;
+  const left=d=>Math.ceil((d-now)/DAY), next=PHASES[pi+1], comp=PHASES[3].until;
+  $("countdown").innerHTML = pi>=4 ? "" :
+    (pi<3 ? `<div><b>${left(ph.until)}</b>días para: ${esc(next.name)}</div>` : "") + `<div><b>${left(comp)}</b>días para volver a competir</div>`;
   $("phaseText").textContent = ph.text;
   $("phaseNo").innerHTML = ph.no.length ? `<li style="list-style:none;margin-left:-18px" class="muted">Todavía no:</li>`+ph.no.map(x=>`<li>${esc(x)}</li>`).join("") : "";
   $("milestones").innerHTML = PHASES.map((p,i)=>`<div class="ms ${i===pi?"now":i<pi?"done":""}"><span class="dot"></span><div><strong>${esc(p.name)}</strong><span class="small muted">${esc(p.label)}</span></div></div>`).join("");
