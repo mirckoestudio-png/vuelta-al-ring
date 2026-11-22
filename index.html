@@ -16,7 +16,6 @@
 </head>
 <body>
 <title>Vuelta al Ring</title>
-
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap">
 <style>
@@ -471,6 +470,12 @@ nav.tabs button[aria-current="page"]{color:var(--accent)}
         </div>
         <button class="primary" type="submit">Guardar</button>
       </form>
+    </details>
+
+    <details class="card" open>
+      <summary><h3>Sueño</h3></summary>
+      <p class="small muted">Sale del chequeo del día en Hoy. Para recuperarte y perder grasa, apunta a 8 h o más.</p>
+      <div class="chart" id="sleepChart"></div>
     </details>
 
     <details class="card" open>
@@ -1451,6 +1456,12 @@ function renderBody(){
     `<div><div class="mini-label">Cintura (cm) · que baje es la señal de que pierdes grasa</div><div class="chart">${lineChart(bs.filter(b=>b.waist!=null).map(b=>({label:shortD(b.date),y:b.waist})),{unit:" cm",color:"var(--gold)",title:"Cintura",empty:"Mide la cintura a la altura del ombligo."})}</div></div>`;
 }
 $("bDate").value=todayIso();
+function renderSleep(){
+  const cs=byKind("check").filter(c=>c.sleep!=null).sort((a,b)=>a.date<b.date?-1:1).slice(-28);
+  const avg=cs.length?Math.round(10*cs.slice(-7).reduce((s,c)=>s+c.sleep,0)/Math.min(7,cs.length))/10:null;
+  $("sleepChart").innerHTML=lineChart(cs.map(c=>({label:shortD(c.date),y:c.sleep})),{unit:" h",goal:8,goalLabel:"meta 8 h",color:"var(--ok)",title:"Sueño",empty:"Marca tus horas de sueño en el chequeo de Hoy."})+
+    (avg!=null?`<p class="small muted">Promedio de los últimos ${Math.min(7,cs.length)} registros: <b>${avg} h</b>.</p>`:"");
+}
 $("bodyForm").addEventListener("submit",e=>{
   e.preventDefault();
   const date=$("bDate").value||todayIso(), w=num($("bW").value,30,200), c=num($("bC").value,40,200);
@@ -1789,7 +1800,7 @@ $("chatClear").onclick=e=>twoTap(e.currentTarget,"chat","Borrar chat",()=>{ delD
 /* ================= RENDER ALL ================= */
 function renderAll(){
   renderToday(); renderAlert(); renderCheck(); renderFood(); renderRutina(false);
-  renderWeek(); renderKnee(); renderBody(); renderStrength(); renderPainChart(); renderWeekChart(); renderAch(); renderHistory(); renderPhotos(); renderChat(); renderPerf(); renderCal(); renderGuided();
+  renderWeek(); renderKnee(); renderBody(); renderSleep(); renderStrength(); renderPainChart(); renderWeekChart(); renderAch(); renderHistory(); renderPhotos(); renderChat(); renderPerf(); renderCal(); renderGuided();
 }
 
 /* ================= BOOT ================= */
