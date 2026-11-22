@@ -1084,7 +1084,17 @@ const ANIM={
   mbslam:{p:[["ball"]],A:{ua:-95,fa:-95},B:{sh:105,th:40,t:-35,ua:80,fa:85}},
   mbrot:{p:[["wall",110],["ball"]],A:{ua:150,fa:160,t:-95},B:{ua:-15,fa:-10,t:-85}},
   jsq:{arc:14,p:[["box",68,70,30,22]],A:{a:[42,92],sh:110,th:20,t:-55,ua:150,fa:150},B:{a:[80,70],ua:20,fa:20}},
-  lmrot:{p:[["lm",14,92],["bb"]],A:{ua:110,fa:-70,t:-85},B:{ua:-35,fa:-35,t:-80}}
+  lmrot:{p:[["lm",14,92],["bb"]],A:{ua:110,fa:-70,t:-85},B:{ua:-35,fa:-35,t:-80}},
+  // movilidad
+  mank:{p:[["wall",100]],A:{a:[84,92],sh:92,th:95,t:-80,th2:120,sh2:105,ua:-10,fa:-10},B:{sh:122,th:112}},
+  m9090:{A:{h:[50,86],t:-90,th:0,sh:0,ft:-90,th2:180,sh2:180,ft2:-90,ua:60,fa:20},B:{t:-55}},
+  mhip:{A:{h:[56,70],th:10,sh:90,th2:100,sh2:180,ft2:180,ua:80,fa:80},B:{h:[61,70],t:-100,th:0,th2:110}},
+  mheel:{A:{h:[56,88],t:180,th:0,sh:0,ft:-90,ua:0,fa:0},B:{th:-60,sh:60,ft:0}},
+  mthor:{ng:1,A:{h:[62,60],t:180,th:90,sh:180,ft:90,ua:90,fa:90,ua2:90,fa2:90},B:{ua:-90,fa:-90}},
+  mcat:{A:{h:[40,73],t:-17,th:90,sh:180,ft:180,cv:8},B:{cv:-7}},
+  mwall:{v:"f",p:[["wall",0]],A:{h:[60,56],ua:-5,fa:-90},B:{ua:-60,fa:-80}},
+  mdisl:{A:{ua:60,fa:60},B:{ua:-220,fa:-220}},
+  mglute:{A:{h:[56,88],t:180,th:-50,sh:70,ua:0,fa:0},B:{h:[56,76],t:155,th:-11,sh:90}}
 };
 function animFig(P,lift){
   const L=[], Bk=[];
@@ -1100,8 +1110,9 @@ function animFig(P,lift){
   const sh=apt(hip,P.t,AL.T), leg=(t,s,f)=>{ const K=apt(hip,t,AL.TH), A=apt(K,s,AL.SH); return [K,A,apt(A,f,AL.FT)]; };
   const [K2,A2,T2]=leg(P.th2??P.th,P.sh2??P.sh,P.ft2??P.ft), [K,A,T]=leg(P.th,P.sh,P.ft);
   const E2=apt(sh,P.ua2??P.ua,AL.UA), W2=apt(E2,P.fa2??P.fa,AL.FA), E=apt(sh,P.ua,AL.UA), W=apt(E,P.fa,AL.FA);
-  Bk.push([hip,K2],[K2,A2],[A2,T2],[sh,E2],[E2,W2]); L.push([hip,K],[K,A],[A,T],[hip,sh],[sh,E],[E,W]);
-  return {L,Bk,head:apt(sh,P.t,AL.N),J:{hip,sh,K,A,W,W2}};
+  Bk.push([hip,K2],[K2,A2],[A2,T2],[sh,E2],[E2,W2]); L.push([hip,K],[K,A],[A,T],[sh,E],[E,W]);
+  const cv=P.cv||0, mid=apt([(hip[0]+sh[0])/2,(hip[1]+sh[1])/2],P.t-90,cv*1.3);
+  return {L,Bk,spine:[hip,mid,sh],head:apt(sh,P.t+cv*4,AL.N),J:{hip,sh,K,A,W,W2}};
 }
 function animFrame(k,p){
   const D=ANIM[k], A={...ABASE,...D.A,v:D.v}, B={...A,...D.B}, P={};
@@ -1109,11 +1120,12 @@ function animFrame(k,p){
   const F=animFig(P,(D.arc||0)*Math.sin(Math.PI*p)), J=F.J, f=n=>n.toFixed(1);
   const ln=(a,b,c="fig")=>`<line class="${c}" x1="${f(a[0])}" y1="${f(a[1])}" x2="${f(b[0])}" y2="${f(b[1])}"/>`;
   const mir=q=>[2*J.c-q[0],q[1]], both=(fn)=>fn(J.W)+(P.v==="f"&&J.W2?fn(J.W2):"");
-  let bg=ln([4,92],[116,92],"gnd"), fg="";
+  let bg=D.ng?"":ln([4,92],[116,92],"gnd"), fg="";
   (D.p||[]).forEach(([t,...v])=>{
     if(t==="bench") bg+=ln([v[0],v[1]],[v[2],v[3]],"eq thick");
     else if(t==="line") bg+=ln([v[0],v[1]],[v[2],v[3]],"eq");
     else if(t==="box") bg+=`<rect class="eq" x="${v[0]}" y="${v[1]}" width="${v[2]}" height="${v[3]}" rx="2"/>`;
+    else if(t==="wall"&&P.v==="f") bg+=`<rect class="eq" x="30" y="2" width="60" height="90" rx="2"/>`;
     else if(t==="wall") bg+=ln([v[0],0],[v[0],92],"eq thick");
     else if(t==="cable"){ const o=[v[0],v[1]]; fg+=ln(o,J.W,"cab")+`<circle class="eq" cx="${o[0]}" cy="${o[1]}" r="2.5"/>`; if(P.v==="f") fg+=ln(mir(o),J.W2,"cab"); }
     else if(t==="band"&&P.v==="f") fg+=ln(J.K,J.K2,"bnd");
@@ -1130,7 +1142,8 @@ function animFrame(k,p){
     else if(t==="plat"){ const a=apt(J.A,v[0],9), b=apt(J.A,v[0]+180,9); fg+=ln(a,b,"eq thick"); }
     else if(t==="padt"){ const o=a=>apt(a,(P.t||-90)-90,4); fg+=ln(o(J.hip),o(J.sh),"eq thick"); }
   });
-  return bg+F.Bk.map(s=>ln(s[0],s[1],"fig bk")).join("")+F.L.map(s=>ln(s[0],s[1])).join("")+
+  const sp=F.spine?`<path class="fig" d="M${f(F.spine[0][0])} ${f(F.spine[0][1])}Q${f(F.spine[1][0])} ${f(F.spine[1][1])} ${f(F.spine[2][0])} ${f(F.spine[2][1])}"/>`:"";
+  return bg+F.Bk.map(s=>ln(s[0],s[1],"fig bk")).join("")+sp+F.L.map(s=>ln(s[0],s[1])).join("")+
     `<circle class="fig" cx="${f(F.head[0])}" cy="${f(F.head[1])}" r="6"/>`+fg;
 }
 let howOpen=null, animRaf=0;
