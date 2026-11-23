@@ -16,6 +16,7 @@
 </head>
 <body>
 <title>Vuelta al Ring</title>
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap">
 <style>
@@ -1073,11 +1074,12 @@ function hrDefault(d){
     E("13:00","13:45","Almuerzo","food"),E("17:00","17:20","Merienda","food"),E("21:00","21:45","Cena","food"),E("23:00","24:00","Dormir (8–9 h)","sleep")];
   const L=[E("08:00","08:15","Despertar + movilidad","mov"),E("08:30","09:00","Desayuno","food")];
   if(w.gym) L.push(E("10:00","11:30","Gimnasio · "+ROUT[w.gym].short,"gym"));
-  L.push(E("11:30","12:00",w.box,"box"),E("12:30","13:15","Almuerzo","food"));
+  L.push(E("12:30","13:15","Almuerzo","food"));
   if(ROUT.CASA.days[d]) L.push(E("14:00","14:20","En casa · rodilla y core","casa"));
-  if(d<=5) L.push(E("15:00","15:20","Merienda antes del fisio","food"),E("16:00","17:00","Fisio","fisio"));
-  else L.push(E("17:00","17:20","Merienda","food"));
-  L.push(E("18:00","18:15","Colación + licuado de proteína","food"),...(d===2||d===4?[E("19:00","20:30","Trabajo","work"),E("21:00","21:45","Cena","food")]:
+  // doble turno: pesas a la mañana, boxeo a la tarde
+  if(d<=5) L.push(E("15:00","15:20","Merienda antes del fisio","food"),E("16:00","17:00","Fisio","fisio"),E("17:15","17:30","Colación + licuado de proteína","food"),E("17:45","18:30","Boxeo · "+w.box,"box"));
+  else L.push(E("16:30","16:50","Merienda","food"),E("17:30","18:15","Boxeo · "+w.box,"box"),E("18:30","18:45","Colación + licuado de proteína","food"));
+  L.push(...(d===2||d===4?[E("19:00","20:30","Trabajo","work"),E("21:00","21:45","Cena","food")]:
     d===1||d===3||d===5?[E("20:00","21:30","Escudero","otro"),E("21:45","22:30","Cena","food")]:[E("21:00","21:45","Cena","food")]),
     E("23:00","24:00","Dormir (8–9 h)","sleep"));
   return L;
