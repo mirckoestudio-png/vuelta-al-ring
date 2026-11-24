@@ -798,6 +798,9 @@ const EX = {
   bdip:{n:"Fondos entre sillas",s:3,r:"máximo",rest:75,bw:true,note:"Manos en una silla firme detrás, baja hasta 90° de codo."},
   wbike:{n:"Bici suave",note:"Sin resistencia, ritmo cómodo. Sube la temperatura del cuerpo y mueve la rodilla."},
   wscap:{n:"Flexiones escapulares",note:"En posición de flexión con los brazos estirados: junta y separa los omóplatos sin doblar los codos."},
+  wrope:{n:"Comba suave",note:"Saltitos bajos sobre las puntas, sin apurarte. Si la rodilla molesta, cámbiala por bici."},
+  bpa:{n:"Separaciones con banda (pull-apart)",note:"Brazos estirados al frente: abre la banda hasta el pecho juntando los omóplatos."},
+  wshadow:{n:"Sombra suave",note:"Guardia, pasitos cortos y golpes al 40%. Sin giros fuertes del pie de atrás."},
   wlight:{n:"Series livianas del primer ejercicio",note:"Barra sola o medio peso, 8–10 repeticiones sin cansarte."},
   wheel:{n:"Rueda abdominal",s:3,r:"10",rest:60,bw:true,note:"De rodillas. Avanza hasta donde mantengas la zona lumbar sin hundirse."}
 };
@@ -828,9 +831,19 @@ const PMODS = [
   {PA:{pre:["mbslam"]}, PCA:{pre:["mbrot"]}},
   {PA:{pre:["jsq"],set:{sq:[5,"3–5"]}}, PB:{pre:["skater"]}, PCB:{pre:["lmrot"]}}
 ];
-const WARM_LEG=[["wbike","5–8 min"],["mank","10 por lado"],["m9090","8 por lado"],["mglute","2 × 15"],["wlight","1–2 series"]];
-const WARM_UP=[["wbike","5 min (o elíptico / comba suave)"],["mdisl","2 × 15"],["er","2 × 15"],["wscap","10"],["wlight","1–2 series"]];
+// 3 versiones que rotan cada semana (se puede elegir otra a mano)
+const WARM_LEG=[
+  [["wbike","5–8 min"],["mank","10 por lado"],["m9090","8 por lado"],["mglute","2 × 15"],["wlight","1–2 series"]],
+  [["wrope","2–3 min suave"],["mheel","15"],["bwalk","2 × 12 pasos por lado"],["mglute","2 × 15"],["wlight","1–2 series"]],
+  [["wbike","5–8 min"],["mhip","40″ por lado"],["tke","15 por pierna"],["bal","30″ por pierna"],["wlight","1–2 series"]]];
+const WARM_UP=[
+  [["wbike","5 min"],["mdisl","2 × 15"],["er","2 × 15"],["wscap","10"],["wlight","1–2 series"]],
+  [["wrope","3 min suave"],["bpa","2 × 15"],["mwall","2 × 12"],["mthor","8 por lado"],["wlight","1–2 series"]],
+  [["wshadow","3 min suave"],["mdisl","2 × 15"],["er","2 × 15"],["mcat","10"],["wlight","1–2 series"]]];
 const WARM = {PA:WARM_LEG, PB:WARM_LEG, EA:WARM_UP, EB:WARM_UP, PCA:WARM_UP, PCB:WARM_UP};
+let warmV=null;
+const warmIdx = () => warmV ?? (weekOf(new Date())%3);
+const warmList = r => WARM[r]?.[warmIdx()] || [];
 const isDeload = (d=new Date()) => { const w=weekOf(d); return w>=18 && (w-18)%7===0; };
 function plan(r){
   const pi=Math.min(phaseIdx(new Date()),PMODS.length-1);
@@ -1163,14 +1176,15 @@ setInterval(()=>{ if(!$("v-horarios").hidden) renderHorarios(); },60000);
 /* calentamiento con animaciones */
 let warmOpen=null;
 function renderWarm(){
-  $("rtWarmList").innerHTML=(WARM[rtSel]||[]).map(([k,d])=>`<div class="wrap" style="gap:6px;border-top:1px solid var(--line);padding-top:8px">
+  $("rtWarmList").innerHTML=(WARM[rtSel]?`<div class="seg" style="grid-template-columns:repeat(3,1fr);grid-auto-flow:row">${[0,1,2].map(i=>`<button data-wv="${i}" aria-pressed="${i===warmIdx()}">${i===weekOf(new Date())%3?'<span class="hoy">esta semana</span>':""}Versión ${"ABC"[i]}</button>`).join("")}</div>`:"")+warmList(rtSel).map(([k,d])=>`<div class="wrap" style="gap:6px;border-top:1px solid var(--line);padding-top:8px">
     <div class="row" style="justify-content:space-between;gap:8px;align-items:center"><span><b>${esc(EX[k].n)}</b> <span class="small muted">${esc(d)}</span></span>
     ${ANIM[k]?`<button class="del ghost" data-whow="${k}" aria-expanded="${warmOpen===k}">${warmOpen===k?"Cerrar":"▶ Cómo"}</button>`:""}</div>
     ${warmOpen===k?`<div class="how"><svg data-anim="${k}" viewBox="0 -8 120 108" role="img" aria-label="Animación: ${esc(EX[k].n)}"></svg></div>`:""}
     ${EX[k].note?`<div class="ex-note">${esc(EX[k].note)}</div>`:""}</div>`).join("");
   startAnim();
 }
-$("rtWarmList").addEventListener("click",e=>{ const b=e.target.closest("[data-whow]"); if(!b) return; warmOpen=warmOpen===b.dataset.whow?null:b.dataset.whow; renderWarm(); });
+$("rtWarmList").addEventListener("click",e=>{ const v=e.target.closest("[data-wv]"); if(v){ warmV=+v.dataset.wv; warmOpen=null; $("rtWarmTxt").textContent=warmList(rtSel).map(([k,d])=>EX[k].n.toLowerCase()+" "+d).join(" · "); renderWarm(); return; }
+  const b=e.target.closest("[data-whow]"); if(!b) return; warmOpen=warmOpen===b.dataset.whow?null:b.dataset.whow; renderWarm(); });
 
 /* ================= PESO SUGERIDO ================= */
 const fmtKg = n => String(n).replace(".",",");
@@ -1338,6 +1352,11 @@ const ANIM={
   wbike:{p:[["ring",30,80,11],["ring",94,80,11],["line",30,80,62,80],["line",62,80,94,80],["line",50,62,62,80],["line",84,48,94,80],["bench",44,62,56,62],["ring",62,80,4]],
     A:{h:[50,59],t:-50,ua:40,fa:0,th:30,sh:110,th2:80,sh2:60,ft:10,ft2:10},B:{th:80,sh:60,th2:30,sh2:110}},
   wscap:{A:{...PUSH.A},B:{t:-19,a:[22,87.5]}},
+  wrope:{arc:5,A:{ua:105,fa:40,ft:10},B:{ft:35,fa:30}},
+  bpa:{v:"f",p:[["bandw"]],A:{h:[60,54],ua:150,fa:175},B:{ua:-2,fa:0}},
+  wshadow:{A:{a:[66,92],th:80,sh:95,th2:105,sh2:80,t:-85,ua:120,fa:-100,ua2:110,fa2:-105},B:{ua:-5,fa:-5}},
+  bwalk:{v:"f",p:[["band"]],A:{h:[54,54],th:95,sh:90},B:{h:[66,54],th:72,sh:84}},
+  tke:{p:[["bandk",104,74]],A:{sh:105,th:78},B:{sh:90,th:90}},
   // movilidad
   mank:{p:[["wall",100]],A:{a:[84,92],sh:92,th:95,t:-80,th2:120,sh2:105,ua:-10,fa:-10},B:{sh:122,th:112}},
   m9090:{A:{h:[50,86],t:-90,th:0,sh:0,ft:-90,th2:180,sh2:180,ft2:-90,ua:60,fa:20},B:{t:-55}},
@@ -1562,7 +1581,7 @@ function renderRutina(force){
     pi===1 ? "Fase 2: se suma un ejercicio de potencia con balón medicinal al principio." :
     "Desde el 24 dic se suman ejercicios de potencia, y en marzo saltos y lanzamientos con giro.";
   $("rtWarm").hidden = rtSel==="CASA"||rtSel==="MOV";
-  $("rtWarmTxt").textContent = (WARM[rtSel]||[]).map(([k,d])=>EX[k].n.toLowerCase()+" "+d).join(" · ");
+  $("rtWarmTxt").textContent = warmList(rtSel).map(([k,d])=>EX[k].n.toLowerCase()+" "+d).join(" · ");
   renderWarm();
   $("rtDeload").hidden = !(isDeload() && rtSel!=="MOV");
   const rl=readiness().level;
