@@ -74,6 +74,16 @@ header{flex-wrap:wrap}
 .countdown div{flex:1;padding:8px 10px;border-radius:10px;background:color-mix(in srgb,var(--accent) 9%,transparent);font-size:12px;color:var(--muted);line-height:1.25}
 .countdown b{display:block;font-family:var(--display);font-size:20px;color:var(--accent);font-variant-numeric:tabular-nums}
 .offbar.off{background:color-mix(in srgb,var(--bad) 12%,transparent);color:var(--bad)}
+.nowc{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;align-items:center;text-align:left;padding:12px 14px;border-radius:14px;border:1px solid var(--line);background:var(--surface);color:var(--fg);font-weight:400;min-height:0;width:100%}
+.nowc .lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--accent)}
+.nowc .lbl.nx{color:var(--muted)}
+.nowc b{font-weight:700}
+.streak{display:flex;align-items:center;gap:12px}
+.streak .n{font-family:var(--display);font-size:34px;line-height:1;color:var(--gold);font-variant-numeric:tabular-nums}
+.sug{font-size:13px;padding:6px 8px;border-radius:8px;background:color-mix(in srgb,var(--accent) 10%,transparent)}
+.shop button{display:flex;justify-content:space-between;gap:10px;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);border-radius:0;background:transparent;padding:10px 2px;min-height:44px;font-weight:400;color:var(--fg)}
+.shop button[aria-pressed="true"]{color:var(--muted);text-decoration:line-through}
+.shop button b{white-space:nowrap}
 .ready{border-radius:14px;padding:14px;display:grid;grid-template-columns:auto 1fr;gap:4px 12px;align-items:center;border:1px solid var(--line);background:var(--surface)}
 .ready .dot{width:16px;height:16px;border-radius:50%;background:var(--muted);grid-row:span 2}
 .ready strong{font-family:var(--display);font-size:20px;text-transform:uppercase;letter-spacing:.03em}
@@ -278,7 +288,10 @@ dialog.sheet form{display:flex;flex-direction:column;gap:12px}
 
   <!-- ============ HOY ============ -->
   <section id="v-hoy" class="wrap">
+    <div id="nowCard"></div>
     <div id="todayAlert" class="ready"></div>
+    <div id="weekSum"></div>
+    <div class="card" id="streakCard"></div>
 
     <div class="card">
       <div class="card-head"><h3>Chequeo del día</h3><span class="small muted" id="ckState">10 segundos</span></div>
@@ -389,6 +402,12 @@ dialog.sheet form{display:flex;flex-direction:column;gap:12px}
         <div class="stepper"><button id="wMinus" aria-label="Menos agua">−</button><output id="wVal">0</output><button id="wPlus" aria-label="Más agua">+</button></div>
       </div>
     </div>
+    <details class="card">
+      <summary><h3>Lista de compras · 7 días</h3></summary>
+      <p class="small muted">Sale de las comidas que más elegiste en las últimas 2 semanas (si todavía no marcaste, usa la primera opción). Toca cada cosa para tacharla en el súper.</p>
+      <div class="shop" id="shopList"></div>
+      <button class="link" id="shopClear" style="align-self:flex-start">Destachar todo</button>
+    </details>
     <details class="card">
       <summary><h3>Claves de la dieta</h3></summary>
       <ul class="tight small">
@@ -1133,6 +1152,104 @@ $("hrReset").onclick=()=>{ if(Date.now()-hrResetArm>4000){ hrResetArm=Date.now()
   hrResetArm=0; const d=JSON.parse(JSON.stringify(docs.sched)); delete d.days[hrSel]; saveDoc("sched",d,0); renderHorarios(); toast("Horario restablecido"); };
 setInterval(()=>{ if(!$("v-horarios").hidden) renderHorarios(); },60000);
 
+
+/* ================= PESO SUGERIDO ================= */
+const fmtKg = n => String(n).replace(".",",");
+// doble progresión: todas las series arriba del rango → sube; si no, mismo peso y +1 rep
+function suggest(k,P,last){
+  if(!last || single(k)) return null;
+  const kg=Math.max(0,...last.sets.map(s=>+s.kg||0)); if(!kg) return null;
+  const top=Math.max(0,...(String(P.r).match(/\d+/g)||[]).map(Number));
+  const hit=last.sets.length>=P.s && last.sets.every(s=>(+s.reps||0)>=top);
+  let next=kg, why="repite el peso y suma 1 repetición";
+  if(hit){ next=kg+(kg>=40?2.5:1); why="la vez pasada completaste todo: sube un poco"; }
+  if(isDeload()){ next=kg*0.7; why="semana de descarga: −30%"; }
+  else if(hit && readiness().level==="yellow"){ next=kg; why="hoy estás en amarillo: mantén el peso"; }
+  return {kg:Math.round(next*2)/2, why};
+}
+
+/* ================= AHORA / DESPUÉS ================= */
+function renderNow(){
+  const d=new Date(), nm=d.getHours()*60+d.getMinutes();
+  const L=hrDay(d.getDay()).map(e=>({...e,a:hrMin(e.s),b:hrMin(e.e)})).sort((x,y)=>x.a-y.a);
+  const cur=L.filter(e=>e.a<=nm&&nm<e.b).pop(), nx=L.find(e=>e.a>nm);
+  $("nowCard").innerHTML = cur||nx ? `<button class="nowc" data-go="horarios">
+    <span class="lbl">Ahora</span><span>${cur?`<b>${esc(cur.t)}</b> <span class="small muted">hasta las ${cur.e}</span>`:`<span class="muted">Libre</span>`}</span>
+    ${nx?`<span class="lbl nx">${nx.s}</span><span>${esc(nx.t)}</span>`:""}</button>` : "";
+}
+setInterval(()=>{ if(!$("v-hoy").hidden) renderNow(); },60000);
+
+/* ================= RACHA ================= */
+function streakInfo(){
+  const td=trainingDates(), c=new Date(); c.setHours(12,0,0,0);
+  const today=iso(c), doneToday=td.has(today);
+  if(!doneToday) c.setDate(c.getDate()-1);
+  let n=0; for(let i=0;i<800;i++){ const k=iso(c); if(td.has(k)) n++; else if(c.getDay()!==0) break; c.setDate(c.getDate()-1); }
+  const y=new Date(); y.setHours(12,0,0,0); y.setDate(y.getDate()-1); if(y.getDay()===0) y.setDate(y.getDate()-1);
+  const missed = td.size>0 && !doneToday && new Date().getDay()!==0 && !td.has(iso(y));
+  return {n,doneToday,missed,started:td.size>0};
+}
+function renderStreak(){
+  const S=streakInfo(), w=WEEK[new Date().getDay()];
+  const mini = w.gym ? plan(w.gym).slice(0,3).map(x=>`${EX[x.k].n} 2 × ${x.r}`).join(" · ")+" · 10′ de comba o sombra" : "";
+  const head = !S.started ? `<div class="streak"><span class="n">0</span><div><strong>Hoy empieza la racha</strong><div class="small muted">Cada día que entrenes suma uno. Los domingos no la cortan.</div></div></div>`
+    : `<div class="streak"><span class="n">${S.n}</span><div><strong>${S.n===1?"día":"días"} de racha${S.doneToday?" · hoy ✓":""}</strong><div class="small muted">${S.doneToday?"Ya sumaste hoy.":"Entrena hoy para sumar uno más."} Los domingos no la cortan.</div></div></div>`;
+  $("streakCard").innerHTML = head + (mini && !S.doneToday ? `<details ${S.missed?"open":""}><summary><strong>${S.missed?"Ayer no entrenaste: nunca dos días seguidos":"¿Sin ganas hoy? Versión mínima de 20 min"}</strong></summary>
+    <p class="small" style="margin-top:6px">${esc(mini)}.</p><p class="small muted">Con esto la racha sigue. Lo que no se corta es el hábito.</p>
+    <button data-go="rutina" data-rt="${w.gym}">Ir a la rutina</button></details>` : "");
+}
+
+/* ================= RESUMEN SEMANAL ================= */
+function prsIn(a,b){ let n=0; Object.keys(EX).forEach(k=>{ let best=0; exHistory(k).forEach(x=>{ if(x.date>=a&&x.date<b&&best>0&&x.v>best) n++; best=Math.max(best,x.v); }); }); return n; }
+function renderWeekSum(){
+  const dow=new Date().getDay();
+  if(dow!==0 && dow!==1){ $("weekSum").innerHTML=""; return; }
+  const off=dow===0?0:-1, c=weekMetrics(off), p=weekMetrics(off-1), [a,b]=weekRange(off), prs=prsIn(a,b);
+  const tips=[];
+  if(c.td<5) tips.push(`Constancia: ${c.td} de 6 días. Usa la versión mínima los días sin ganas.`);
+  if(c.sleep!=null && c.sleep<7.5) tips.push(`Sueño: ${String(c.sleep).replace(".",",")} h de promedio. Apunta a 8 h.`);
+  if(c.prot!=null && c.prot<150) tips.push(`Proteína: ${c.prot} g de promedio. Te faltan unos ${160-c.prot} g por día: suma un licuado o un yogur.`);
+  if(c.pain!=null && c.pain>=3) tips.push("La rodilla molestó bastante: contáselo al fisio y baja un poco la carga de piernas.");
+  if(!tips.length) tips.push("Semana redonda. Mantén lo mismo y sube el peso donde la app te lo sugiera.");
+  const dw = c.weight!=null&&p.weight!=null ? Math.round((c.weight-p.weight)*10)/10 : null;
+  const row=(l,v)=>`<div class="stat"><b>${v}</b><span>${l}</span></div>`;
+  $("weekSum").innerHTML=`<div class="card"><div class="card-head"><div><div class="eyebrow">${dow===0?"Cierre de la semana":"Semana pasada"}</div><h3>Resumen semanal</h3></div><button class="link" data-go="progreso">Progreso →</button></div>
+    <div class="stats">${row("Días entrenados",`${c.td}/6`)}${row("Series",c.sets)}${row("Récords",prs)}${row("Sueño prom.",c.sleep==null?"–":String(c.sleep).replace(".",",")+" h")}${row("Proteína prom.",c.prot==null?"–":c.prot+" g")}${row("Peso",dw==null?(c.weight==null?"–":fmtKg(c.weight)+" kg"):(dw>0?"+":"")+fmtKg(dw)+" kg")}</div>
+    <div><div class="mini-label">Para la semana que viene</div><ul class="tight small">${tips.map(t=>`<li>${esc(t)}</li>`).join("")}</ul></div></div>`;
+}
+
+/* ================= LISTA DE COMPRAS ================= */
+const SHOP = {
+  des:[[["Huevos",3,"u"],["Pan integral",2,"rebanadas"],["Queso untable",30,"g"],["Fruta",1,"u"]],
+       [["Avena",50,"g"],["Leche",250,"ml"],["Proteína en polvo",1,"scoops"],["Bananas",1,"u"],["Mantequilla de maní",15,"g"]],
+       [["Yogur",300,"g"],["Granola",40,"g"],["Fruta",1,"u"],["Huevos",2,"u"]]],
+  alm:[[["Pollo",180,"g"],["Arroz",70,"g"],["Calabaza o verduras",150,"g"]],
+       [["Carne magra (nalga, peceto, cuadril)",180,"g"],["Papa o batata",300,"g"],["Calabaza o verduras",150,"g"]],
+       [["Fideos",100,"g"],["Tomate triturado",150,"g"],["Carne picada magra o atún",150,"g"],["Queso rallado",20,"g"]]],
+  mer:[[["Leche",300,"ml"],["Proteína en polvo",1,"scoops"],["Bananas",1,"u"],["Avena",40,"g"],["Espinaca",30,"g"]],
+       [["Pan integral",2,"rebanadas"],["Jamón cocido",40,"g"],["Queso",40,"g"],["Fruta",1,"u"],["Yogur",200,"g"]]],
+  cen:[[["Merluza o pollo",180,"g"],["Papa o batata",250,"g"],["Calabaza o verduras",150,"g"]],
+       [["Huevos",4,"u"],["Papa o batata",200,"g"],["Espinaca",100,"g"]],
+       [["Wraps integrales",2,"u"],["Pollo",150,"g"],["Queso",40,"g"],["Calabaza o verduras",100,"g"]]],
+  col:[[["Yogur",200,"g"],["Fruta",1,"u"]],[["Frutos secos",30,"g"],["Fruta",1,"u"]],[["Proteína en polvo",1,"scoops"]]]
+};
+function shopItems(){
+  const since=iso(new Date(Date.now()-14*DAY)), recent=byKind("meals").filter(m=>m.date>=since), tot={};
+  MEALS.forEach(m=>{ const cnt={}; recent.forEach(d=>{ const o=d.eaten?.[m.k]; if(o!=null) cnt[o]=(cnt[o]||0)+1; });
+    const best=+(Object.entries(cnt).sort((x,y)=>y[1]-x[1])[0]?.[0] ?? 0);
+    (SHOP[m.k]?.[best]||[]).forEach(([n,q,u])=>{ tot[n]=tot[n]||{q:0,u}; tot[n].q+=q*7; }); });
+  tot["Creatina"]={q:35,u:"g"};
+  const f=({q,u})=> u==="g"?(q>=1000?fmtKg(Math.round(q/100)/10)+" kg":q+" g") : u==="ml"?(q>=1000?fmtKg(Math.round(q/100)/10)+" L":q+" ml") : u==="u"?String(q) : q+" "+u;
+  return Object.keys(tot).sort((a,b)=>a.localeCompare(b,"es")).map(n=>[n,f(tot[n])]);
+}
+function renderShop(){
+  const wk=iso(mondayOf(new Date())), done=docs.shop?.week===wk?(docs.shop.done||{}):{};
+  $("shopList").innerHTML=shopItems().map(([n,q])=>`<button data-shop="${esc(n)}" aria-pressed="${!!done[n]}"><span>${esc(n)}</span><b>${esc(q)}</b></button>`).join("");
+}
+function shopSet(fn){ const wk=iso(mondayOf(new Date())), d=docs.shop?.week===wk?JSON.parse(JSON.stringify(docs.shop)):{kind:"shop",week:wk,done:{}}; fn(d.done); saveDoc("shop",d,0); renderShop(); }
+$("shopList").onclick=e=>{ const b=e.target.closest("[data-shop]"); if(b) shopSet(D=>{ const n=b.dataset.shop; if(D[n]) delete D[n]; else D[n]=true; }); };
+$("shopClear").onclick=()=>shopSet(D=>{ Object.keys(D).forEach(k=>delete D[k]); });
+
 /* ================= ANIMACIONES (muñeco) ================= */
 // Ángulos en grados (0 = derecha, 90 = abajo). a = tobillo fijo, h = cadera fija. v:"f" = vista de frente.
 const AL={T:26,N:9,UA:14,FA:13,TH:19,SH:19,FT:7};
@@ -1437,7 +1554,7 @@ function renderRutina(force){
 }
 function exCard(k,i){
   const e=EX[k], P=plan(rtSel).find(x=>x.k===k)||{s:e.s,r:e.r}, w=docs[wid(rtSel)], sets=(w?.sets?.[k])||[], n=Math.max(P.s, sets.length), one=single(k);
-  const last=lastSets(k,todayIso()), pb=bestBefore(k,todayIso());
+  const last=lastSets(k,todayIso()), pb=bestBefore(k,todayIso()), sug=suggest(k,P,last);
   const todayBest = Math.max(0,...sets.filter(s=>s&&s.done).map(s=>score(s,k)));
   const isPR = todayBest>0 && pb.best>0 && todayBest>pb.best+1e-9;
   const allDone = sets.filter(s=>s&&s.done).length>=P.s;
@@ -1446,7 +1563,7 @@ function exCard(k,i){
     const s=sets[j]||{}, ph=last?.sets[j]||last?.sets[last.sets.length-1];
     rows += one
       ? `<div class="set t"><span>${j+1}</span><input id="in-${k}-${j}-r" data-k="${k}" data-j="${j}" data-f="reps" type="number" inputmode="numeric" placeholder="${ph?ph.reps:(e.time?"seg":"reps")}" value="${s.reps??""}" aria-label="${e.time?"Segundos":"Repeticiones"} serie ${j+1}"><button class="chk" data-k="${k}" data-j="${j}" aria-pressed="${!!s.done}" aria-label="Serie ${j+1} hecha">✓</button></div>`
-      : `<div class="set"><span>${j+1}</span><input id="in-${k}-${j}-kg" data-k="${k}" data-j="${j}" data-f="kg" type="number" step="0.5" inputmode="decimal" placeholder="${ph?ph.kg:"kg"}" value="${s.kg??""}" aria-label="Kilos serie ${j+1}"><input id="in-${k}-${j}-r" data-k="${k}" data-j="${j}" data-f="reps" type="number" inputmode="numeric" placeholder="${ph?ph.reps:"reps"}" value="${s.reps??""}" aria-label="Repeticiones serie ${j+1}"><button class="chk" data-k="${k}" data-j="${j}" aria-pressed="${!!s.done}" aria-label="Serie ${j+1} hecha">✓</button></div>`;
+      : `<div class="set"><span>${j+1}</span><input id="in-${k}-${j}-kg" data-k="${k}" data-j="${j}" data-f="kg" type="number" step="0.5" inputmode="decimal" placeholder="${sug?sug.kg:ph?ph.kg:"kg"}" value="${s.kg??""}" aria-label="Kilos serie ${j+1}"><input id="in-${k}-${j}-r" data-k="${k}" data-j="${j}" data-f="reps" type="number" inputmode="numeric" placeholder="${ph?ph.reps:"reps"}" value="${s.reps??""}" aria-label="Repeticiones serie ${j+1}"><button class="chk" data-k="${k}" data-j="${j}" aria-pressed="${!!s.done}" aria-label="Serie ${j+1} hecha">✓</button></div>`;
   }
   return `<div class="ex ${allDone?"done":""}" id="ex-${k}">
     <div class="ex-top"><div style="display:flex;gap:10px;min-width:0"><span class="ex-num">${i+1}</span><div style="min-width:0"><div class="ex-name">${esc(e.n)} ${isPR?'<span class="pill gold">Récord</span>':""}</div>
@@ -1459,6 +1576,7 @@ function exCard(k,i){
       <a class="link small" href="https://www.youtube.com/results?search_query=${encodeURIComponent(e.n+" técnica")}" target="_blank" rel="noopener">Ver videos reales en YouTube (necesita internet)</a></div>`:""}
     ${e.note?`<div class="ex-note">${esc(e.note)}</div>`:""}
     ${last?`<div class="small muted">Última (${fmtDate(parseIso(last.date))}): ${last.sets.map(s=>fmtSet(s,k)).join(" · ")}${pb.set?` · Mejor: ${fmtSet(pb.set,k)}`:""}</div>`:`<div class="small muted">Primera vez: elige un peso con el que te sobren 2–3 repeticiones.</div>`}
+    ${sug?`<div class="sug">Hoy prueba <b>${fmtKg(sug.kg)} kg × ${esc(P.r)}</b> <span class="muted">· ${esc(sug.why)}</span></div>`:""}
     <div class="set-head ${one?"t":""}"><span>#</span>${e.time?"<span>segundos</span>":e.bw?"<span>repeticiones</span>":"<span>kg</span><span>reps</span>"}<span>hecha</span></div>
     <div class="sets">${rows}</div>
     <button class="link" data-add="${k}" style="align-self:flex-start">+ Agregar serie</button>
@@ -2100,7 +2218,7 @@ $("chatClear").onclick=e=>twoTap(e.currentTarget,"chat","Borrar chat",()=>{ delD
 
 /* ================= RENDER ALL ================= */
 function renderAll(){
-  renderToday(); renderAlert(); renderCheck(); renderFood(); renderRutina(false);
+  renderToday(); renderAlert(); renderCheck(); renderFood(); renderRutina(false); renderNow(); renderStreak(); renderWeekSum(); renderShop();
   renderWeek(); renderKnee(); renderBody(); renderSleep(); renderStrength(); renderPainChart(); renderWeekChart(); renderAch(); renderHistory(); renderPhotos(); renderChat(); renderPerf(); renderCal(); renderGuided(); if(!$("v-horarios").hidden) renderHorarios();
 }
 
