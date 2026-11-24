@@ -64,6 +64,9 @@ p{margin:0}
 .block .body{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
 .block strong{font-size:15px}
 ul.tight{margin:0;padding-left:18px} ul.tight li{margin:2px 0}
+.rule.bad{border-left-color:var(--bad);background:color-mix(in srgb,var(--bad) 10%,transparent)}
+.rule.ok{border-left-color:var(--ok);background:color-mix(in srgb,var(--ok) 10%,transparent)}
+.rule.info{border-left-color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,transparent)}
 .rule{border-left:3px solid var(--warn);padding:8px 10px;background:color-mix(in srgb,var(--warn) 10%,transparent);border-radius:0 8px 8px 0;font-size:13px}
 header{flex-wrap:wrap}
 .btnlike{display:inline-flex;align-items:center;justify-content:center;font-size:15px;font-weight:600;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:10px 14px;min-height:44px;cursor:pointer;flex:1 1 auto}
@@ -387,6 +390,7 @@ dialog.sheet form{display:flex;flex-direction:column;gap:12px}
         <button data-d="train">Día de entreno</button><button data-d="rest">Día de descanso</button>
       </div>
       <div id="fdBars" class="wrap" style="gap:10px"></div>
+      <div id="fdAlert" class="wrap" style="gap:8px"></div>
     </div>
     <div id="fdMeals" class="wrap" style="gap:14px"></div>
     <div class="card">
@@ -1762,6 +1766,19 @@ function mealTotals(d, date){
   (d.extras||[]).forEach(k=>{ const x=EXTRAS.find(e=>e.k===k); if(x) x.m.forEach((v,i)=>t[i]+=v); });
   return {kcal:t[0],p:t[1],c:t[2],f:t[3],dt};
 }
+// avisos del día según lo comido y la hora
+function foodAlerts(t,T){
+  const A=[], h=new Date().getHours(), over=t.kcal-T.kcal, left=-over;
+  if(over>0) A.push(["bad",`<b>Te pasaste ${over} kcal hoy.</b> `+(h<20?"Para lo que queda: algo liviano, como pollo o pescado con verduras, sin papa, arroz ni pan.":"No pasa nada por un día: mañana sigue el plan normal, sin saltear comidas para compensar.")]);
+  else if(t.kcal>0 && left<350 && h<19) A.push(["warn",`<b>Te quedan ${left} kcal</b> y todavía falta parte del día. Elige lo más liviano de las opciones.`]);
+  if(t.c>T.c*1.1) A.push(["warn",`<b>Carbos: ${Math.round(t.c-T.c)} g de más.</b> En la próxima comida cambia arroz, papa, pan o fideos por verduras.`]);
+  if(t.f>T.f*1.15) A.push(["warn",`<b>Grasas: ${Math.round(t.f-T.f)} g de más.</b> Ojo con frituras, aceite, fiambres, queso y dulces.`]);
+  if(t.p>T.p*1.4) A.push(["info",`<b>Proteína: ${t.p} g.</b> No es malo, pero pasado ~220 g no suma más músculo. Mejor usa esas calorías en carbos para entrenar.`]);
+  else if(t.p>=T.p*0.9 && !A.some(a=>a[0]==="bad")) A.push(["ok",`<b>Proteína cumplida ✓</b> (${t.p} g).`]);
+  else if(h>=18 && t.p<T.p*0.7) A.push(["warn",`<b>Te faltan ${T.p-t.p} g de proteína.</b> Suma un licuado, yogur o huevos en la cena.`]);
+  return A;
+}
+const alertHTML = A => A.map(([c,t])=>`<div class="rule ${c}">${t}</div>`).join("");
 function macroRow(label, val, target, unit){
   const pct=Math.min(100,100*val/target), cls = val>target*1.1 ? "warn" : val>=target*0.9 ? "ok" : "";
   return `<div class="macro"><span>${label}</span><div class="bar ${cls}"><i style="width:${pct}%"></i></div><b>${Math.round(val)}/${target}${unit}</b></div>`;
@@ -1770,6 +1787,7 @@ function renderFood(){
   const date=todayIso(), {d}=mealDoc(date), tot=mealTotals(d,date), T=TARGET[tot.dt];
   $("fdTitle").textContent = tot.dt==="train" ? "Día de entreno" : "Día de descanso";
   document.querySelectorAll("#fdDay button").forEach(b=>b.setAttribute("aria-pressed", b.dataset.d===tot.dt));
+  $("fdAlert").innerHTML = alertHTML(foodAlerts(tot,T));
   $("fdBars").innerHTML = macroRow("Calorías",tot.kcal,T.kcal," kcal")+macroRow("Proteína",tot.p,T.p," g")+macroRow("Carbos",tot.c,T.c," g")+macroRow("Grasas",tot.f,T.f," g");
   $("fdMeals").innerHTML = MEALS.map(m=>`<div class="card meal"><div class="card-head"><h3>${m.n}</h3>${slotDone(d,m.k)?'<span class="pill ok">Hecha</span>':""}</div>
     <p class="small muted" style="margin:-4px 0 0">Puedes marcar más de una.</p>
@@ -1786,6 +1804,7 @@ function renderFood(){
   $("cuAI").hidden = !sample;
   // today card on Hoy
   $("todayFood").innerHTML = macroRow("Proteína",tot.p,T.p," g")+macroRow("Calorías",tot.kcal,T.kcal," kcal")+
+    `<div class="wrap" style="gap:6px;margin-top:8px">${alertHTML(foodAlerts(tot,T).filter(a=>a[0]==="bad"||a[0]==="warn"))}</div>`+
     `<p class="small muted" style="margin-top:8px">${MEALS.filter(m=>slotDone(d,m.k)).length} de ${MEALS.length} comidas · agua ${d.water||0}/12 · creatina ${d.creat?"✓":"pendiente"}</p>`;
 }
 function foodSet(mut){ const date=todayIso(), {id,d}=mealDoc(date); mut(d); saveDoc(id,d,600); }
