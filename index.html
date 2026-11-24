@@ -390,6 +390,26 @@ dialog.sheet form{display:flex;flex-direction:column;gap:12px}
     </div>
     <div id="fdMeals" class="wrap" style="gap:14px"></div>
     <div class="card">
+      <h3>Comí otra cosa</h3>
+      <p class="small muted">Si comiste algo que no está en el plan (por ejemplo, lo que cocinó tu mamá), anótalo acá y suma a tus números del día.</p>
+      <form id="cuForm" class="wrap" style="gap:10px" novalidate>
+        <label for="cuT">Qué comiste<input id="cuT" maxlength="80" placeholder="Ej.: milanesa con puré de mi mamá"></label>
+        <div class="grid2">
+          <label for="cuMeal">En qué comida<select id="cuMeal"></select></label>
+          <label for="cuQ">Porción<select id="cuQ"><option value="0.5">Media</option><option value="1" selected>Normal</option><option value="1.5">Grande</option><option value="2">Doble</option></select></label>
+        </div>
+        <label for="cuLike">Se parece a<select id="cuLike"></select></label>
+        <div class="grid2" id="cuManual" hidden>
+          <label for="cuK">Calorías<input id="cuK" type="number" inputmode="numeric" min="0" max="3000" placeholder="kcal"></label>
+          <label for="cuP">Proteína (g)<input id="cuP" type="number" inputmode="numeric" min="0" max="300" placeholder="g"></label>
+        </div>
+        <button type="button" id="cuAI" hidden>Que el Coach calcule las calorías</button>
+        <p class="small muted" id="cuEst"></p>
+        <button class="primary" type="submit">Agregar</button>
+      </form>
+      <div id="cuList" class="chips"></div>
+    </div>
+    <div class="card">
       <h3>Algo más que comiste</h3>
       <div class="chips" id="fdExtraBtns"></div>
       <div id="fdExtras" class="small muted"></div>
@@ -1268,7 +1288,7 @@ const SHOP = {
 };
 function shopItems(){
   const since=iso(new Date(Date.now()-14*DAY)), recent=byKind("meals").filter(m=>m.date>=since), tot={};
-  MEALS.forEach(m=>{ const cnt={}; recent.forEach(d=>{ const o=d.eaten?.[m.k]; if(o!=null) cnt[o]=(cnt[o]||0)+1; });
+  MEALS.forEach(m=>{ const cnt={}; recent.forEach(d=>picks(d,m.k).forEach(o=>{ cnt[o]=(cnt[o]||0)+1; }));
     const best=+(Object.entries(cnt).sort((x,y)=>y[1]-x[1])[0]?.[0] ?? 0);
     (SHOP[m.k]?.[best]||[]).forEach(([n,q,u])=>{ tot[n]=tot[n]||{q:0,u}; tot[n].q+=q*7; }); });
   tot["Creatina"]={q:35,u:"g"};
@@ -1721,11 +1741,24 @@ $("progCards").addEventListener("click",e=>{
 });
 
 /* ================= COMIDA ================= */
+// eaten[k] puede ser un número (versiones viejas) o una lista de opciones
+const picks = (d,k) => { const v=d?.eaten?.[k]; return v==null?[]:Array.isArray(v)?v:[v]; };
+const slotDone = (d,k) => picks(d,k).length>0 || (d?.custom||[]).some(c=>c.meal===k);
+const DISHES = [
+  ["Milanesa con puré",[750,45,60,35]],["Milanesa con ensalada",[550,40,25,30]],["Pollo al horno con papas",[700,50,55,28]],
+  ["Arroz con pollo",[650,40,80,15]],["Guiso (lentejas, arroz o fideos)",[600,30,75,18]],["Pastel de papa",[650,35,55,30]],
+  ["Ravioles o ñoquis con salsa",[700,25,95,22]],["Fideos con manteca y queso",[650,20,90,22]],["Polenta con salsa y queso",[550,18,75,18]],
+  ["Tarta de verdura (2 porciones)",[550,20,45,32]],["Asado (carne + chorizo)",[900,60,5,70]],["Hamburguesa casera con pan",[650,35,45,35]],
+  ["Choripán",[550,22,40,32]],["Sándwich de miga (3)",[450,18,40,24]],["Ensalada completa (huevo o atún)",[350,22,15,20]],
+  ["Sopa o caldo con verduras",[200,8,25,6]],["Medialunas o facturas (2)",[400,6,45,22]],["Alfajor",[250,3,35,11]],
+  ["Helado (¼ kg)",[500,8,60,25]],["Gaseosa o jugo (vaso)",[100,0,25,0]],["Cerveza (lata)",[150,1,13,0]]
+];
 function mealDoc(date){ const id="m-"+date; return {id, d: docs[id] ? JSON.parse(JSON.stringify(docs[id])) : {kind:"meals",date,eaten:{},extras:[],water:0}}; }
 function dayType(d, date){ return d.day || ([1,2,3,4,5].includes(parseIso(date).getDay()) ? "train":"rest"); }
 function mealTotals(d, date){
   const dt=dayType(d,date), t=[0,0,0,0];
-  MEALS.forEach(m=>{ const oi=d.eaten?.[m.k]; if(oi==null) return; const o=m.opts[oi]; if(!o) return; const v=(dt==="rest"&&o.r)?o.r:o.t; v.forEach((x,i)=>t[i]+=x); });
+  MEALS.forEach(m=>picks(d,m.k).forEach(oi=>{ const o=m.opts[oi]; if(!o) return; const v=(dt==="rest"&&o.r)?o.r:o.t; v.forEach((x,i)=>t[i]+=x); }));
+  (d.custom||[]).forEach(c=>(c.m||[]).forEach((v,i)=>t[i]+=+v||0));
   (d.extras||[]).forEach(k=>{ const x=EXTRAS.find(e=>e.k===k); if(x) x.m.forEach((v,i)=>t[i]+=v); });
   return {kcal:t[0],p:t[1],c:t[2],f:t[3],dt};
 }
@@ -1738,8 +1771,9 @@ function renderFood(){
   $("fdTitle").textContent = tot.dt==="train" ? "Día de entreno" : "Día de descanso";
   document.querySelectorAll("#fdDay button").forEach(b=>b.setAttribute("aria-pressed", b.dataset.d===tot.dt));
   $("fdBars").innerHTML = macroRow("Calorías",tot.kcal,T.kcal," kcal")+macroRow("Proteína",tot.p,T.p," g")+macroRow("Carbos",tot.c,T.c," g")+macroRow("Grasas",tot.f,T.f," g");
-  $("fdMeals").innerHTML = MEALS.map(m=>`<div class="card meal"><div class="card-head"><h3>${m.n}</h3>${d.eaten?.[m.k]!=null?'<span class="pill ok">Hecha</span>':""}</div>
-    ${m.opts.map((o,i)=>{ const v=(tot.dt==="rest"&&o.r)?o.r:o.t, on=d.eaten?.[m.k]===i;
+  $("fdMeals").innerHTML = MEALS.map(m=>`<div class="card meal"><div class="card-head"><h3>${m.n}</h3>${slotDone(d,m.k)?'<span class="pill ok">Hecha</span>':""}</div>
+    <p class="small muted" style="margin:-4px 0 0">Puedes marcar más de una.</p>
+    ${m.opts.map((o,i)=>{ const v=(tot.dt==="rest"&&o.r)?o.r:o.t, on=picks(d,m.k).includes(i);
       return `<button class="opt" data-m="${m.k}" data-o="${i}" aria-pressed="${on}"><strong>${esc(o.n)}</strong><span class="ck">${on?"✓ Comida":"Marcar"}</span>
       <span class="d">${esc(tot.dt==="rest"&&o.dr?o.dr+" · "+o.d:o.d)}</span><span class="m">${v[0]} kcal · ${v[1]} g prot · ${v[2]} g carbos · ${v[3]} g grasas</span></button>`; }).join("")}
   </div>`).join("");
@@ -1748,13 +1782,52 @@ function renderFood(){
   $("fdExtras").innerHTML = ex.length ? "Hoy: "+ex.map((k,i)=>`<button class="chip" data-rx="${i}" aria-label="Quitar">${esc(EXTRAS.find(e=>e.k===k)?.n||k)} ✕</button>`).join(" ") : "Toca para sumar lo que comiste fuera del plan.";
   $("fdSupp").innerHTML = [["creat","Creatina 3–5 g"],["col","Colágeno + vitamina C"]].map(([k,n])=>`<button class="chip" data-s="${k}" aria-pressed="${!!d[k]}">${d[k]?"✓ ":""}${n}</button>`).join("");
   $("wVal").textContent = d.water||0;
+  $("cuList").innerHTML = (d.custom||[]).map((c,i)=>`<button class="chip" data-cu="${i}" aria-label="Quitar ${esc(c.t)}">${esc(c.t)} · ${c.m[0]} kcal ✕</button>`).join("");
+  $("cuAI").hidden = !sample;
   // today card on Hoy
   $("todayFood").innerHTML = macroRow("Proteína",tot.p,T.p," g")+macroRow("Calorías",tot.kcal,T.kcal," kcal")+
-    `<p class="small muted" style="margin-top:8px">${MEALS.filter(m=>d.eaten?.[m.k]!=null).length} de ${MEALS.length} comidas · agua ${d.water||0}/12 · creatina ${d.creat?"✓":"pendiente"}</p>`;
+    `<p class="small muted" style="margin-top:8px">${MEALS.filter(m=>slotDone(d,m.k)).length} de ${MEALS.length} comidas · agua ${d.water||0}/12 · creatina ${d.creat?"✓":"pendiente"}</p>`;
 }
 function foodSet(mut){ const date=todayIso(), {id,d}=mealDoc(date); mut(d); saveDoc(id,d,600); }
 $("fdDay").onclick=e=>{ const b=e.target.closest("button"); if(b) foodSet(d=>{ d.day=b.dataset.d; }); };
-$("fdMeals").onclick=e=>{ const b=e.target.closest(".opt"); if(!b) return; foodSet(d=>{ d.eaten=d.eaten||{}; const o=+b.dataset.o; if(d.eaten[b.dataset.m]===o) delete d.eaten[b.dataset.m]; else d.eaten[b.dataset.m]=o; }); };
+$("fdMeals").onclick=e=>{ const b=e.target.closest(".opt"); if(!b) return; foodSet(d=>{ d.eaten=d.eaten||{}; const k=b.dataset.m, o=+b.dataset.o, a=picks(d,k); const n=a.includes(o)?a.filter(x=>x!==o):[...a,o]; if(n.length) d.eaten[k]=n; else delete d.eaten[k]; }); };
+
+/* comí otra cosa */
+let cuAI=null; // estimación del Coach para el texto actual
+$("cuMeal").innerHTML=MEALS.map(m=>`<option value="${m.k}">${esc(m.n.split(" ·")[0])}</option>`).join("")+`<option value="otro">Otro momento</option>`;
+$("cuLike").innerHTML=`<option value="">Elige el plato más parecido…</option>`+DISHES.map(([n],i)=>`<option value="${i}">${esc(n)}</option>`).join("")+`<option value="m">Ninguno: pongo los números yo</option>`;
+function cuMacros(){
+  const q=+$("cuQ").value||1, v=$("cuLike").value;
+  if(cuAI) return cuAI.map(x=>Math.round(x*q));
+  if(v==="m"){ const k=num($("cuK").value,0,3000), p=num($("cuP").value,0,300); return k==null?null:[Math.round(k*q),Math.round((p||0)*q),0,0]; }
+  if(v==="") return null;
+  return DISHES[+v][1].map(x=>Math.round(x*q));
+}
+function cuShow(){
+  $("cuManual").hidden=$("cuLike").value!=="m" || !!cuAI;
+  const m=cuMacros(); $("cuEst").textContent = m ? `≈ ${m[0]} kcal · ${m[1]} g proteína${m[2]?` · ${m[2]} g carbos · ${m[3]} g grasas`:""}${cuAI?" (calculado por el Coach)":""}` : "";
+}
+["cuQ","cuLike","cuK","cuP"].forEach(id=>$(id).addEventListener("input",cuShow));
+$("cuT").addEventListener("input",()=>{ if(cuAI){ cuAI=null; cuShow(); } });
+$("cuAI").onclick=async()=>{
+  const t=$("cuT").value.trim(); if(!t){ toast("Escribe qué comiste."); return; }
+  const btn=$("cuAI"); btn.disabled=true; btn.textContent="Calculando…";
+  try{
+    const r=await sample.json(`Estimá las calorías y macros de UNA porción normal de esta comida casera argentina: "${t}". Respondé solo JSON: {"kcal":número,"p":gramos de proteína,"c":gramos de carbohidratos,"f":gramos de grasa}.`);
+    const v=[r?.kcal,r?.p,r?.c,r?.f].map(x=>Math.max(0,Math.min(3000,Math.round(+x||0))));
+    if(!v[0]) throw 0; cuAI=v; cuShow();
+  }catch(e){ toast("No se pudo calcular. Elige un plato parecido."); }
+  btn.disabled=false; btn.textContent="Que el Coach calcule las calorías";
+};
+$("cuForm").addEventListener("submit",e=>{
+  e.preventDefault();
+  const t=$("cuT").value.trim().slice(0,80), m=cuMacros();
+  if(!t){ toast("Escribe qué comiste."); return; }
+  if(!m){ toast("Elige un plato parecido o pon las calorías."); return; }
+  foodSet(d=>{ d.custom=[...(d.custom||[]),{t,meal:$("cuMeal").value,m}].slice(-20); });
+  $("cuT").value=""; $("cuLike").value=""; $("cuK").value=""; $("cuP").value=""; $("cuQ").value="1"; cuAI=null; cuShow(); toast("Sumado");
+});
+$("cuList").onclick=e=>{ const b=e.target.closest("[data-cu]"); if(b) foodSet(d=>{ d.custom=(d.custom||[]).filter((_,i)=>i!==+b.dataset.cu); }); };
 $("fdExtraBtns").onclick=e=>{ const b=e.target.closest("[data-x]"); if(b){ foodSet(d=>{ d.extras=[...(d.extras||[]),b.dataset.x].slice(0,40); }); toast("Sumado"); } };
 $("fdExtras").onclick=e=>{ const b=e.target.closest("[data-rx]"); if(b) foodSet(d=>{ d.extras=(d.extras||[]).filter((_,i)=>i!==+b.dataset.rx); }); };
 $("fdSupp").onclick=e=>{ const b=e.target.closest("[data-s]"); if(b) foodSet(d=>{ d[b.dataset.s]=!d[b.dataset.s]; }); };
@@ -2220,7 +2293,7 @@ Horario de hoy: ${hrDay(now.getDay()).map(e=>`${e.s}–${e.e} ${e.t}`).join("; "
 Chequeo de hoy: ${ck?`sueño ${ck.sleep??"?"} h, energía ${ck.energy??"?"}/5, confianza en la rodilla ${ck.conf??"?"}/10`:"no lo completó"}.
 Gimnasio hecho hoy: ${gym.join(" | ")||"nada todavía"}.
 Boxeo/cardio registrado hoy: ${ses.join(" | ")||"nada todavía"}.
-Comida de hoy: ${ft?`${ft.kcal}/${tgt.kcal} kcal, ${ft.p}/${tgt.p} g proteína, ${ft.c}/${tgt.c} g carbos, ${ft.f}/${tgt.f} g grasas; comidas marcadas: ${MEALS.filter(m=>meal.eaten?.[m.k]!=null).map(m=>m.n+" ("+m.opts[meal.eaten[m.k]]?.n+")").join(", ")||"ninguna"}; agua ${meal.water||0} vasos; creatina ${meal.creat?"sí":"no"}`:"no registró nada todavía"}.
+Comida de hoy: ${ft?`${ft.kcal}/${tgt.kcal} kcal, ${ft.p}/${tgt.p} g proteína, ${ft.c}/${tgt.c} g carbos, ${ft.f}/${tgt.f} g grasas; comidas marcadas: ${MEALS.filter(m=>picks(meal,m.k).length).map(m=>m.n+" ("+picks(meal,m.k).map(i=>m.opts[i]?.n).join(" + ")+")").join(", ")||"ninguna"}; fuera del plan: ${(meal.custom||[]).map(c=>`${c.t} (${c.m[0]} kcal, ${c.m[1]} g prot)`).join(", ")||"nada"}; agua ${meal.water||0} vasos; creatina ${meal.creat?"sí":"no"}`:"no registró nada todavía"}.
 Datos de los últimos 14 días (JSON): ${coachData()}`;
 }
 async function sendChat(q){
