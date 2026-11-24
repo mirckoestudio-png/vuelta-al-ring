@@ -358,7 +358,7 @@ dialog.sheet form{display:flex;flex-direction:column;gap:12px}
       <p class="small muted" id="rtPhase"></p>
       <div class="rule" id="rtReady" hidden></div>
       <div class="rule" id="rtDeload" hidden><b>Semana de descarga:</b> misma rutina con una serie menos y −30% de peso. Recuperar también es entrenar.</div>
-      <div class="block" id="rtWarm"><span class="tag">Antes</span><div class="body"><strong>Calentamiento · 10 min</strong><span class="small muted">5–8 min de bici suave + movilidad de cadera y tobillo + 2 × 15 puentes de glúteo + 1–2 series livianas del primer ejercicio.</span></div></div>
+      <div class="block" id="rtWarm"><span class="tag">Antes</span><div class="body"><strong>Calentamiento · 10 min</strong><span class="small muted" id="rtWarmTxt"></span></div></div>
       <div class="small muted">Se guarda solo mientras anotas. Marca ✓ en cada serie y arranca el descanso.</div>
       <div class="row small"><span id="rtSaved" class="muted">Sin cambios hoy</span></div>
     </div>
@@ -825,6 +825,13 @@ const PMODS = [
   {PA:{pre:["mbslam"]}, PCA:{pre:["mbrot"]}},
   {PA:{pre:["jsq"],set:{sq:[5,"3–5"]}}, PB:{pre:["skater"]}, PCB:{pre:["lmrot"]}}
 ];
+const WARM_UP="5 min de bici, elíptico o comba suave + dislocaciones de hombro con banda 2 × 15 + rotación externa con banda 2 × 15 + 10 flexiones escapulares";
+const WARM = {
+  PA:"5–8 min de bici suave + movilidad de cadera y tobillo + 2 × 15 puentes de glúteo + 1–2 series livianas del primer ejercicio.",
+  PB:"5–8 min de bici suave + movilidad de cadera y tobillo + 2 × 15 puentes de glúteo + 1–2 series livianas del primer ejercicio. Antes de los hombros: 1 serie liviana de laterales.",
+  EA:WARM_UP+" + 1–2 series livianas de dominadas o jalón.", EB:WARM_UP+" + 1–2 series livianas de jalón.",
+  PCA:WARM_UP+" + 1–2 series livianas de press banca (barra sola y medio peso).", PCB:WARM_UP+" + 1–2 series livianas del press inclinado."
+};
 const isDeload = (d=new Date()) => { const w=weekOf(d); return w>=18 && (w-18)%7===0; };
 function plan(r){
   const pi=Math.min(phaseIdx(new Date()),PMODS.length-1);
@@ -1538,7 +1545,8 @@ function renderRutina(force){
     pi>=2 ? "Fase de potencia: se suman saltos y lanzamientos al principio, y la sentadilla pasa a 5 × 3–5." :
     pi===1 ? "Fase 2: se suma un ejercicio de potencia con balón medicinal al principio." :
     "Desde el 24 dic se suman ejercicios de potencia, y en marzo saltos y lanzamientos con giro.";
-  $("rtWarm").hidden = rtSel==="CASA";
+  $("rtWarm").hidden = rtSel==="CASA"||rtSel==="MOV";
+  $("rtWarmTxt").textContent = WARM[rtSel]||"";
   $("rtDeload").hidden = !(isDeload() && rtSel!=="MOV");
   const rl=readiness().level;
   $("rtReady").hidden = rtSel==="MOV" || !(rl==="yellow"||rl==="red");
