@@ -16,7 +16,6 @@
 </head>
 <body>
 <title>Vuelta al Ring</title>
-
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap">
 <style>
@@ -280,7 +279,7 @@ dialog.sheet form{display:flex;flex-direction:column;gap:12px}
 <div class="wrap">
   <header>
     <div>
-      <div class="eyebrow">LCA + menisco · 3 sep 2026</div>
+      <div class="eyebrow">LCA + menisco · der 3 sep · izq 3 dic</div>
       <h1>Vuelta al Ring</h1>
       <span class="phase" id="hdrPhase">–</span>
     </div>
@@ -292,6 +291,7 @@ dialog.sheet form{display:flex;flex-direction:column;gap:12px}
   <!-- ============ HOY ============ -->
   <section id="v-hoy" class="wrap">
     <div id="nowCard"></div>
+    <div id="preopCard"></div>
     <div id="todayAlert" class="ready"></div>
     <div id="weekSum"></div>
     <div class="card" id="streakCard"></div>
@@ -704,21 +704,37 @@ const num = (v,min,max) => { const n=parseFloat(String(v).replace(",",".")); ret
 
 /* ================= PLAN DATA ================= */
 const PHASES = [
-  {until:new Date(2026,11,24), name:"Fuerza + boxeo sin pivote", label:"Hasta el 24 dic · semanas 12–16",
-   text:"Fuerza pesada de piernas, torso completo, comba progresiva, bici y boxeo sin girar fuerte la pierna de atrás.",
-   no:["Correr o saltar a una pierna","Pivote fuerte del pie de atrás (cross, uppercut y gancho de atrás a potencia completa)","Curl femoral pesado (injerto de isquio): súbelo poco a poco","Sparring o cualquier contacto"]},
-  {until:new Date(2027,2,3), name:"Trote y juego de pies", label:"24 dic → 3 mar · meses 4–6",
-   text:"Trote si el fisio lo aprueba, juego de pies hacia delante y atrás, manoplas, saltos suaves y giro del pie de atrás añadido poco a poco.",
+  {until:new Date(2027,2,24), name:"Fuerza + boxeo sin pivote", label:"25 feb → 24 mar · semanas 12–16",
+   text:"Fuerza pesada de piernas, torso completo, comba progresiva, bici y boxeo sin girar fuerte los pies.",
+   no:["Correr o saltar a una pierna","Pivotes fuertes (cross, ganchos y uppercuts a potencia completa)","Curl femoral pesado (injerto de isquio): súbelo poco a poco","Sparring o cualquier contacto"]},
+  {until:new Date(2027,5,3), name:"Trote y juego de pies", label:"24 mar → 3 jun · meses 4–6",
+   text:"Trote si el kinesiólogo lo aprueba, juego de pies hacia delante y atrás, manoplas, saltos suaves y giro de los pies añadido poco a poco.",
    no:["Cambios de dirección explosivos","Sparring"]},
-  {until:new Date(2027,5,3), name:"Potencia y pivote completo", label:"3 mar → 3 jun · meses 6–9",
+  {until:new Date(2027,8,3), name:"Potencia y pivote completo", label:"3 jun → 3 sep · meses 6–9",
    text:"Pliometría, cambios de dirección, giro completo en todos los golpes y saco a intensidad alta.",
    no:["Sparring fuerte antes de pasar los tests"]},
-  {until:new Date(2027,8,3), name:"Sparring progresivo", label:"3 jun → 3 sep 2027 · meses 9–12",
-   text:"Sparring técnico → controlado → fuerte, solo con fuerza y saltos ≥90% respecto a la pierna sana.",
+  {until:new Date(2027,11,3), name:"Sparring progresivo", label:"3 sep → 3 dic 2027 · meses 9–12",
+   text:"Sparring técnico → controlado → fuerte, solo con fuerza y saltos ≥90% en los tests del kinesiólogo.",
    no:["Competir sin el alta del médico"]},
-  {until:new Date(2100,0,1), name:"Vuelta a competir", label:"Desde el 3 sep 2027",
+  {until:new Date(2100,0,1), name:"Vuelta a competir", label:"Desde el 3 dic 2027",
    text:"Competición con el alta del médico y los tests superados. Mantén 2 sesiones de fuerza por semana.", no:[]}
 ];
+// 2ª operación: LCA + menisco de la rodilla izquierda (la de adelante en guardia ortodoxa)
+const SURGERY2 = new Date(2026,11,3);
+const OPS = [
+  {k:"pre",until:SURGERY2, name:"Pre-operación", label:"Hasta el 3 dic",
+   text:"Torso normal en el gimnasio. Prepara la rodilla izquierda: que estire del todo, cuádriceps fuerte y sin hinchazón. Boxeo solo con las manos.",
+   no:["Saltos, comba o pivotes con la rodilla izquierda","Nada que la hinche o la haga torcer"]},
+  {k:"post",until:new Date(2027,0,14), name:"Post-operación", label:"3 dic → 14 ene · semanas 0–6",
+   text:"Ejercicios de kinesio en casa 2–3 veces por día, hielo y pierna elevada. Torso sentado en el gimnasio cuando el cirujano lo habilite (suele ser desde la semana 2).",
+   no:["Boxeo, comba y saco de pie","Dejar las muletas antes de que te lo indiquen","Piernas con peso","Curl femoral (si el injerto es de isquio)"]},
+  {k:"base",until:new Date(2027,1,25), name:"Fuerza base", label:"14 ene → 25 feb · semanas 6–12",
+   text:"Vuelve el gimnasio de 6 días. Los días de piernas son de rehabilitación en máquinas livianas, según el kinesiólogo. Bici y sombra con las manos.",
+   no:["Correr, saltar o comba","Pivotes y juego de pies","Sparring"]}
+];
+const stageOf = d => d<OPS[OPS.length-1].until ? OPS.find(o=>d<o.until) : null;
+// shortcut: la etapa se calcula al abrir la app; si queda abierta al cambiar de etapa, se actualiza al reabrirla
+const STAGE = stageOf(new Date())?.k;
 const phaseIdx = d => PHASES.findIndex(p => d < p.until);
 
 const EX = {
@@ -826,6 +842,10 @@ const EX = {
   bpa:{n:"Separaciones con banda (pull-apart)",note:"Brazos estirados al frente: abre la banda hasta el pecho juntando los omóplatos."},
   wshadow:{n:"Sombra suave",note:"Guardia, pasitos cortos y golpes al 40%. Sin giros fuertes del pie de atrás."},
   wlight:{n:"Series livianas del primer ejercicio",note:"Barra sola o medio peso, 8–10 repeticiones sin cansarte."},
+  apump:{n:"Bombeo de tobillos",s:3,r:"20",rest:20,bw:true,note:"Acostado con la pierna elevada: mueve los pies arriba y abajo. Ayuda a bajar la hinchazón."},
+  qset:{n:"Contracción de cuádriceps",s:3,r:"10 × 5″",rest:20,bw:true,note:"Pierna estirada: aprieta el muslo empujando la parte de atrás de la rodilla contra el piso. Aguanta 5″."},
+  pext:{n:"Extensión pasiva de rodilla",s:3,r:"180″",rest:30,time:true,note:"Talón sobre una toalla enrollada y la rodilla en el aire, relajada. Recuperar la rodilla RECTA es lo más importante de las primeras semanas."},
+  slr:{n:"Elevación de pierna recta",s:3,r:"10",rest:30,bw:true,note:"Acostado, la otra rodilla doblada. Aprieta el cuádriceps, sube la pierna recta hasta la altura de la otra rodilla y baja lento. Si la rodilla se dobla al subir, vuelve a la contracción de cuádriceps."},
   wheel:{n:"Rueda abdominal",s:3,r:"10",rest:60,bw:true,note:"De rodillas. Avanza hasta donde mantengas la zona lumbar sin hundirse."}
 };
 const SUBS = {
@@ -847,6 +867,8 @@ const ROUT = {
     days:{1:["wsit","span","stuh","bal","pallof","splank"],2:["wsit","span","stuh","bal","bdip","push","plank","er"],3:["splank"],
           4:["wsit","span","stuh","bal","pallof"],5:["wsit","span","stuh","bal","dpush","wheel"],6:["neck"]},
     set:{push:[3,"máximo"],dpush:[3,"máximo"]}},
+  SUP:{short:"Torso sentado",n:"Tren superior sentado",sub:"Cuando el cirujano lo habilite · todo sentado o acostado",ex:["pmach","mrow","lpd","mohp","dbcurl","ohtri","er"],stage:"post"},
+  PR:{short:"Piernas rehab",n:"Piernas · rehabilitación",sub:"Máquinas livianas · solo lo que habilite el kinesiólogo",ex:["leg","span","ht","tke","abd","calf","bal"],set:{leg:[3,"12–15"],ht:[3,"12"]},stage:"base"},
   MOV:{short:"Movilidad",n:"Movilidad y prevención",sub:"10–15 min · todos los días o como calentamiento",ex:["mank","m9090","mhip","mheel","mthor","mcat","mwall","mdisl","mglute"]}
 };
 // Cambios acumulativos por fase (índice = fase). pre: ejercicios de potencia al principio; set: [series, reps].
@@ -864,7 +886,8 @@ const WARM_UP=[
   [["wbike","5 min"],["mdisl","2 × 15"],["er","2 × 15"],["wscap","10"],["wlight","1–2 series"]],
   [["wrope","3 min suave"],["bpa","2 × 15"],["mwall","2 × 12"],["mthor","8 por lado"],["wlight","1–2 series"]],
   [["wshadow","3 min suave"],["mdisl","2 × 15"],["er","2 × 15"],["mcat","10"],["wlight","1–2 series"]]];
-const WARM = {PA:WARM_LEG, PB:WARM_LEG, EA:WARM_UP, EB:WARM_UP, PCA:WARM_UP, PCB:WARM_UP};
+const WARM = {PA:WARM_LEG, PB:WARM_LEG, PR:WARM_LEG, EA:WARM_UP, EB:WARM_UP, PCA:WARM_UP, PCB:WARM_UP, SUP:WARM_UP};
+if(STAGE) [...WARM_LEG,...WARM_UP].forEach(v=>v.forEach((x,i)=>{ if(x[0]==="wrope") v[i]=["wbike",x[1]]; })); // sin comba alrededor de la operación
 let warmV=null;
 const warmIdx = () => warmV ?? (weekOf(new Date())%3);
 const warmList = r => WARM[r]?.[warmIdx()] || [];
@@ -895,7 +918,7 @@ const PROGS = {
 };
 const PROG_NEED = 3;
 const PERF = [["slsq","Sentadilla a una pierna a cajón (operada)","reps"],["push","Flexiones máximas","reps"],["pull","Dominadas máximas","reps"],
-  ["plank","Plancha máxima","seg"],["rope","Comba sin fallar","seg"],["bike","Bici 10 minutos","km"],["vj","Salto vertical (desde marzo)","cm"]];
+  ["plank","Plancha máxima","seg"],["rope","Comba sin fallar","seg"],["bike","Bici 10 minutos","km"],["vj","Salto vertical (desde junio)","cm"]];
 const WEEK = {
   1:{gym:"EA",box:"Comba + saco 5 rounds",types:["Comba","Boxeo"]},
   2:{gym:"PCA",box:"Bici 30–45 min + sombra técnica",types:["Bici","Boxeo"]},
@@ -905,10 +928,25 @@ const WEEK = {
   6:{gym:"PB",box:"Sombra suave 3–4 rounds + caminata 30 min",types:["Caminata","Boxeo"]},
   0:{gym:null,box:"Descanso: caminar y estirar",types:["Descanso"]}
 };
+// la semana cambia alrededor de la 2ª operación
+if(STAGE==="pre"){
+  [1,2,3,4,5].forEach(d=>{ WEEK[d]={...WEEK[d],box:"Bici 20–30 min + saco solo con las manos, sin saltos ni pivotes",types:["Bici","Boxeo"]}; });
+  WEEK[6]={...WEEK[6],box:"Sombra suave sin pivotes + caminata 30 min"};
+  [1,2,3,4,5,6].forEach(d=>{ ROUT.CASA.days[d]=["pext","tke",...ROUT.CASA.days[d].filter(k=>k!=="tke")]; });
+}
+if(STAGE==="post"){
+  const k="Kinesio en casa 2–3 veces + hielo y pierna elevada";
+  [1,3,5].forEach(d=>{ WEEK[d]={gym:"SUP",box:k,types:["Fisio"],tail:"kinesio"}; });
+  [2,4,6].forEach(d=>{ WEEK[d]={gym:null,box:k,types:["Fisio"]}; });
+  WEEK[0]={gym:null,box:"Descanso: solo los ejercicios de kinesio",types:["Descanso"]};
+  ROUT.CASA={...ROUT.CASA,short:"Kinesio",n:"Kinesio en casa · rodilla operada",sub:"2–3 veces por día · 15 min",days:Object.fromEntries([0,1,2,3,4,5,6].map(d=>[d,["apump","qset","pext","slr","mheel"]])),set:{}};
+}
+if(STAGE==="base") [1,2,3,4,5,6].forEach(d=>{ const w=WEEK[d]; WEEK[d]={gym:w.gym==="PA"||w.gym==="PB"?"PR":w.gym,box:"Bici 20–30 min + sombra con las manos, sin juego de pies",types:["Bici","Boxeo"],tail:"bici"}; });
 const SACO = "Saco: rounds de 3′ con 1′ de descanso. Potencia con la mano de delante y cross de atrás al 50–60% con giro parcial (talón apenas levantado). Algún round en guardia zurda.";
 
 /* nutrition */
-const TARGET = {train:{kcal:2500,p:160,c:300,f:70}, rest:{kcal:2200,p:160,c:230,f:70}};
+const TARGET = STAGE==="post"||STAGE==="base" ? {train:{kcal:2300,p:160,c:250,f:70}, rest:{kcal:2100,p:160,c:200,f:70}}
+  : {train:{kcal:2500,p:160,c:300,f:70}, rest:{kcal:2200,p:160,c:230,f:70}};
 const MEALS = [
   {k:"des",n:"Desayuno",opts:[
     {n:"Huevos y tostadas",d:"3 huevos revueltos + 2 tostadas integrales con queso untable + 1 fruta",t:[550,30,55,22]},
@@ -1137,10 +1175,13 @@ function hrDefault(d){
   const L=[E("08:00","08:15","Despertar + movilidad","mov"),E("08:30","09:00","Desayuno","food")];
   if(w.gym) L.push(E("10:00","11:30","Gimnasio · "+ROUT[w.gym].short,"gym"));
   L.push(E("12:30","13:15","Almuerzo","food"));
-  if(ROUT.CASA.days[d]) L.push(E("14:00","14:20","En casa · rodilla y core","casa"));
+  if(ROUT.CASA.days[d]) L.push(E("14:00","14:20",STAGE==="post"?"Kinesio en casa":"En casa · rodilla y core","casa"));
+  if(STAGE==="post"){ L.push(E("15:00","15:20","Merienda","food"),E("16:00","17:00","Fisio","fisio"),E("18:00","18:20","Kinesio en casa · 2ª vuelta + hielo","casa"));
+    L.push(...(d===2||d===4?[E("19:00","20:30","Trabajo","work"),E("21:00","21:45","Cena","food")]:d===1||d===3||d===5?[E("20:00","21:30","Escudero","otro"),E("21:45","22:30","Cena","food")]:[E("21:00","21:45","Cena","food")]),E("23:00","24:00","Dormir (8–9 h)","sleep"));
+    return L; }
   // doble turno: pesas a la mañana, boxeo a la tarde
-  if(d<=5) L.push(E("15:00","15:20","Merienda antes del fisio","food"),E("16:00","17:00","Fisio","fisio"),E("17:15","17:30","Colación + licuado de proteína","food"),E("17:45","18:30","Boxeo · "+w.box,"box"));
-  else L.push(E("16:30","16:50","Merienda","food"),E("17:30","18:15","Boxeo · "+w.box,"box"),E("18:30","18:45","Colación + licuado de proteína","food"));
+  if(d<=5) L.push(E("15:00","15:20","Merienda antes del fisio","food"),E("16:00","17:00","Fisio","fisio"),E("17:15","17:30","Colación + licuado de proteína","food"),E("17:45","18:30",(STAGE?"":"Boxeo · ")+w.box,"box"));
+  else L.push(E("16:30","16:50","Merienda","food"),E("17:30","18:15",(STAGE?"":"Boxeo · ")+w.box,"box"),E("18:30","18:45","Colación + licuado de proteína","food"));
   L.push(...(d===2||d===4?[E("19:00","20:30","Trabajo","work"),E("21:00","21:45","Cena","food")]:
     d===1||d===3||d===5?[E("20:00","21:30","Escudero","otro"),E("21:45","22:30","Cena","food")]:[E("21:00","21:45","Cena","food")]),
     E("23:00","24:00","Dormir (8–9 h)","sleep"));
@@ -1299,6 +1340,17 @@ function shopItems(){
   const f=({q,u})=> u==="g"?(q>=1000?fmtKg(Math.round(q/100)/10)+" kg":q+" g") : u==="ml"?(q>=1000?fmtKg(Math.round(q/100)/10)+" L":q+" ml") : u==="u"?String(q) : q+" "+u;
   return Object.keys(tot).sort((a,b)=>a.localeCompare(b,"es")).map(n=>[n,f(tot[n])]);
 }
+/* lista para la operación del 3 dic */
+const PREOP=["Muletas (probalas antes)","Hielo o bolsas de gel + toalla","Short o pantalón ancho que pase sobre el vendaje","Banquito para la ducha y algo antideslizante","Comida lista para 3–4 días + proteína en polvo","Cargador largo y todo a mano cerca de la cama",
+  "Preguntarle al cirujano: ¿qué injerto usa?","Preguntarle: ¿cuándo apoyo y cuándo dejo las muletas?","Preguntarle: ¿cuándo puedo hacer torso sentado en el gimnasio?","Turno con el kinesiólogo para la primera semana"];
+function renderPreop(){
+  if(STAGE!=="pre"){ $("preopCard").innerHTML=""; return; }
+  const done=docs.preop?.done||{}, n=PREOP.filter(x=>done[x]).length;
+  $("preopCard").innerHTML=`<div class="card"><div class="card-head"><h3>Para el 3 de diciembre</h3><span class="pill ${n===PREOP.length?"ok":""}">${n}/${PREOP.length}</span></div>
+    <p class="small muted">Faltan ${Math.ceil((SURGERY2-new Date())/DAY)} días. Tocá lo que ya tengas listo.</p><div class="shop" id="preopList">${PREOP.map(x=>`<button data-pre="${esc(x)}" aria-pressed="${!!done[x]}"><span>${esc(x)}</span></button>`).join("")}</div></div>`;
+}
+$("preopCard").onclick=e=>{ const b=e.target.closest("[data-pre]"); if(!b) return; const d=JSON.parse(JSON.stringify(docs.preop||{kind:"preop",done:{}})), x=b.dataset.pre;
+  if(d.done[x]) delete d.done[x]; else d.done[x]=true; saveDoc("preop",d,0); };
 function renderShop(){
   const wk=iso(mondayOf(new Date())), done=docs.shop?.week===wk?(docs.shop.done||{}):{};
   $("shopList").innerHTML=shopItems().map(([n,q])=>`<button data-shop="${esc(n)}" aria-pressed="${!!done[n]}"><span>${esc(n)}</span><b>${esc(q)}</b></button>`).join("");
@@ -1390,6 +1442,10 @@ const ANIM={
   mcat:{A:{h:[40,73],t:-17,th:90,sh:180,ft:180,cv:8},B:{cv:-7}},
   mwall:{v:"f",p:[["wall",0]],A:{h:[60,56],ua:-5,fa:-90},B:{ua:-60,fa:-80}},
   mdisl:{A:{ua:60,fa:60},B:{ua:-220,fa:-220}},
+  apump:{A:{h:[56,88],t:180,th:0,sh:0,ft:-90,ua:0,fa:0},B:{ft:-55}},
+  qset:{A:{h:[56,88],t:180,th:-4,sh:8,ft:-90,ua:0,fa:0},B:{th:0,sh:0}},
+  pext:{A:{h:[56,88],t:180,th:-6,sh:6,ft:-90,ua:0,fa:0},B:{th:-2,sh:2}},
+  slr:{A:{h:[56,88],t:180,th:0,sh:0,ft:-90,ua:0,fa:0,th2:-50,sh2:50},B:{th:-35}},
   mglute:{A:{h:[56,88],t:180,th:-50,sh:70,ua:0,fa:0},B:{h:[56,76],t:155,th:-11,sh:90}}
 };
 function animFig(P,lift){
@@ -1454,22 +1510,23 @@ function startAnim(){ if(!animRaf && document.querySelector("svg[data-anim]")) a
 
 /* ================= HEADER + HOY ================= */
 function renderHeader(){
-  const now=new Date(), pi=phaseIdx(now), ph=PHASES[pi];
-  $("hdrWeek").textContent = weekOf(now);
-  $("hdrDay").textContent = daysSince(now);
+  const now=new Date(), pi=phaseIdx(now), ALL=[...OPS,...PHASES], ci=ALL.findIndex(p=>now<p.until), ph=ALL[ci];
+  const d2=Math.floor((new Date(now.getFullYear(),now.getMonth(),now.getDate())-SURGERY2)/DAY); // días desde la 2ª operación
+  $("hdrWeek").textContent = d2>=0 ? Math.floor(d2/7)+1 : weekOf(now);
+  $("hdrDay").textContent = d2>=0 ? d2 : daysSince(now);
   $("hdrPhase").textContent = ph.name;
-  const left=d=>Math.ceil((d-now)/DAY), next=PHASES[pi+1], comp=PHASES[3].until;
-  $("countdown").innerHTML = pi>=4 ? "" :
-    (pi<3 ? `<div><b>${left(ph.until)}</b>días para: ${esc(next.name)}</div>` : "") + `<div><b>${left(comp)}</b>días para volver a competir</div>`;
+  const left=d=>Math.ceil((d-now)/DAY), next=ALL[ci+1], comp=PHASES[3].until;
+  $("countdown").innerHTML = ci>=ALL.length-1 ? "" :
+    (ci<ALL.length-2 ? `<div><b>${left(ph.until)}</b>días para: ${esc(STAGE==="pre"?"la operación":next.name)}</div>` : "") + `<div><b>${left(comp)}</b>días para volver a competir</div>`;
   $("phaseText").textContent = ph.text;
   $("phaseNo").innerHTML = ph.no.length ? `<li style="list-style:none;margin-left:-18px" class="muted">Todavía no:</li>`+ph.no.map(x=>`<li>${esc(x)}</li>`).join("") : "";
-  $("milestones").innerHTML = PHASES.map((p,i)=>`<div class="ms ${i===pi?"now":i<pi?"done":""}"><span class="dot"></span><div><strong>${esc(p.name)}</strong><span class="small muted">${esc(p.label)}</span></div></div>`).join("");
+  $("milestones").innerHTML = ALL.map((p,i)=>`<div class="ms ${i===ci?"now":i<ci?"done":""}"><span class="dot"></span><div><strong>${esc(p.name)}</strong><span class="small muted">${esc(p.label)}</span></div></div>`).join("");
   $("cbPhase").textContent = `Fase actual: ${ph.name}. ` + (pi<=0 ? "Las combinaciones cargan la mano de delante; el cross va suave." : pi===1 ? "Ya entra el cross con giro progresivo." : "Combinaciones completas con giro del pie de atrás.");
 }
 function renderToday(){
   const now=new Date(), w=WEEK[now.getDay()];
   $("todayLabel").textContent = `${DOW[now.getDay()]} ${fmtDate(now)}`;
-  $("todayTitle").textContent = w.gym ? `${ROUT[w.gym].short} + boxeo` : (now.getDay()===0 ? "Descanso activo" : "Día suave");
+  $("todayTitle").textContent = w.gym ? `${ROUT[w.gym].short} + ${w.tail||"boxeo"}` : (now.getDay()===0 ? "Descanso activo" : "Día suave");
   let h = "";
   if(w.gym){
     const wd = docs[`w-${todayIso()}-${w.gym}`], n = wd?doneSets(wd):0, tot = plan(w.gym).reduce((s,x)=>s+x.s,0);
@@ -1596,14 +1653,17 @@ function lastSets(ex, date){
 const fmtSet = (s,ex) => EX[ex]?.time ? `${s.reps}″` : EX[ex]?.bw ? `${s.reps} reps` : `${(+s.kg||0)}×${s.reps||0}`;
 function renderRutina(force){
   const today = WEEK[new Date().getDay()].gym;
-  $("rtSeg").innerHTML = Object.keys(ROUT).map(k=>`<button data-r="${k}" aria-pressed="${k===rtSel}">${k===today||(k==="CASA"&&ROUT.CASA.days[new Date().getDay()])?'<span class="hoy">hoy</span>':""}${ROUT[k].short}</button>`).join("");
+  $("rtSeg").innerHTML = Object.keys(ROUT).filter(k=>!ROUT[k].stage||ROUT[k].stage===STAGE||k===rtSel).map(k=>`<button data-r="${k}" aria-pressed="${k===rtSel}">${k===today||(k==="CASA"&&ROUT.CASA.days[new Date().getDay()])?'<span class="hoy">hoy</span>':""}${ROUT[k].short}</button>`).join("");
   const R = ROUT[rtSel];
   $("rtTitle").textContent = R.n; $("rtSub").textContent = R.sub;
   const pi=phaseIdx(new Date());
-  $("rtPhase").textContent = rtSel==="CASA" ? "Hazlo en casa cuando quieras: a la mañana, antes del fisio o a la noche. Cambia según el día de la semana." : rtSel==="MOV" ? "Hazla todos los días: sola en los días de descanso o como calentamiento." :
+  $("rtPhase").textContent = STAGE==="pre" && rtSel==="CASA" ? "Antes de la operación: hazlo con las dos piernas. Que la izquierda llegue estirando del todo y sin hinchazón." :
+    STAGE==="post" ? "Post-operación: lo principal son los ejercicios de kinesio en casa, 2–3 veces por día. El torso sentado, solo cuando el cirujano lo habilite." :
+    STAGE==="base" && rtSel==="PR" ? "Fuerza base: piernas solo en máquinas livianas y en el rango que te indique el kinesiólogo." :
+    rtSel==="CASA" ? "Hazlo en casa cuando quieras: a la mañana, antes del fisio o a la noche. Cambia según el día de la semana." : rtSel==="MOV" ? "Hazla todos los días: sola en los días de descanso o como calentamiento." :
     pi>=2 ? "Fase de potencia: se suman saltos y lanzamientos al principio, y la sentadilla pasa a 5 × 3–5." :
     pi===1 ? "Fase 2: se suma un ejercicio de potencia con balón medicinal al principio." :
-    "Desde el 24 dic se suman ejercicios de potencia, y en marzo saltos y lanzamientos con giro.";
+    "Desde el 24 mar se suman ejercicios de potencia, y en junio saltos y lanzamientos con giro.";
   $("rtWarm").hidden = rtSel==="CASA"||rtSel==="MOV";
   $("rtWarmTxt").textContent = warmList(rtSel).map(([k,d])=>EX[k].n.toLowerCase()+" "+d).join(" · ");
   renderWarm();
@@ -1704,7 +1764,7 @@ $("restSkip").onclick=()=>{ clearInterval(rest.iv); $("restBar").hidden=true; };
 $("restAdd").onclick=()=>{ rest.end+=30000; };
 
 /* ================= PROGRAMAS POR FASE ================= */
-const PHASE_START = ["ahora","el 24 dic","el 3 mar"];
+const PHASE_START = ["ahora","el 24 mar","el 3 jun"];
 function progState(pk){
   const P=PROGS[pk], p=(docs.prog&&docs.prog[pk])||{}, counts=p.counts||[], pi=phaseIdx(new Date());
   const eff = p.unlocked ? Math.max(pi,1) : pi;
@@ -2104,13 +2164,14 @@ $("perfForm").addEventListener("submit",e=>{
 /* informe para el fisio */
 let downloads=null, repText="";
 function buildReport(){
-  const now=new Date(), since=iso(new Date(now.getTime()-28*DAY)), r=x=>x.date>=since, ph=PHASES[phaseIdx(now)];
+  const now=new Date(), since=iso(new Date(now.getTime()-28*DAY)), r=x=>x.date>=since, ph=stageOf(now)||PHASES[phaseIdx(now)];
   const ss=sessions().filter(r), pains=ss.filter(x=>x.pain!=null).map(x=>x.pain);
   const swell=ss.filter(x=>x.swell&&x.swell!=="no"), cks=byKind("check").filter(r).filter(c=>c.conf);
   const td=[...trainingDates()].filter(d=>d>=since).length;
   const L=[];
   L.push(`INFORME DE RECUPERACIÓN · ${fmtDate(now)} ${now.getFullYear()}`);
-  L.push(`Cirugía: reconstrucción de LCA (injerto de isquiotibiales) + meniscectomía, 3 sep 2026. Rodilla de atrás en guardia de boxeo.`);
+  L.push(`Cirugía 1: reconstrucción de LCA (injerto de isquiotibiales) + meniscectomía, 3 sep 2026. Rodilla derecha (la de atrás en guardia de boxeo).`);
+  L.push(`Cirugía 2: LCA + menisco, 3 dic 2026. Rodilla izquierda (la de adelante).`);
   L.push(`Hoy: semana ${weekOf(now)} (día ${daysSince(now)}). Fase de trabajo: ${ph.name}.`,"");
   L.push(`ÚLTIMAS 4 SEMANAS`);
   L.push(`- Días entrenados: ${td}`);
@@ -2220,7 +2281,7 @@ function renderAch(){
     [quad>=80,"Rodilla al 80%","Cuádriceps al 80% de la pierna sana"],[quad>=90,"Listo para el ring","Cuádriceps al 90% o más"],
     [byKind("perf").length>=1,"Punto de partida","Primera batería de tests"],[byKind("perf").length>=3,"Atleta medido","3 baterías de tests"],
     [(progState("run").counts[6]||0)>=PROG_NEED,"5 km","Completaste el nivel de 30 min de trote"],[progState("jump").cur<0,"Resorte","Programa de saltos completo"],
-    [new Date()>=new Date(2026,11,24),"Fase 2","Llegaste a trote y juego de pies"],[new Date()>=new Date(2027,2,3),"Mitad del camino","6 meses desde la operación"]
+    [new Date()>=new Date(2027,2,24),"Fase 2","Llegaste a trote y juego de pies"],[new Date()>=new Date(2027,5,3),"Mitad del camino","6 meses desde la 2ª operación"]
   ];
   $("achCount").textContent=`${L.filter(x=>x[0]).length}/${L.length}`;
   $("achGrid").innerHTML=L.map(([on,t,d])=>`<div class="${on?"on":""}"><strong>${on?"★ ":""}${esc(t)}</strong><span>${esc(d)}</span></div>`).join("");
@@ -2298,7 +2359,7 @@ function renderChat(){
   $("chatClear").hidden=!m.length;
 }
 function todayContext(){
-  const now=new Date(), date=todayIso(), w=WEEK[now.getDay()], ph=PHASES[phaseIdx(now)];
+  const now=new Date(), date=todayIso(), w=WEEK[now.getDay()], ph=stageOf(now)||PHASES[phaseIdx(now)];
   const ck=docs["c-"+date], meal=docs["m-"+date], ft=meal?mealTotals(meal,date):null, tgt=TARGET[ft?ft.dt:([1,2,3,4,5].includes(now.getDay())?"train":"rest")];
   const gym=workouts().filter(x=>x.date===date&&doneSets(x)).map(x=>`${ROUT[x.routine]?.n}: ${Object.entries(x.sets||{}).map(([k,a])=>`${EX[k]?.n} ${(a||[]).filter(s=>s&&s.done).map(s=>fmtSet(s,k)).join(", ")}`).filter(s=>/\d/.test(s)).join("; ")}`);
   const ses=sessions().filter(x=>x.date===date).map(x=>`${(x.types||[]).join("+")} ${x.min||0} min, ${x.rounds||0} rounds, dolor ${x.pain}, hinchazón ${x.swell}`);
@@ -2354,7 +2415,7 @@ $("chatClear").onclick=e=>twoTap(e.currentTarget,"chat","Borrar chat",()=>{ delD
 
 /* ================= RENDER ALL ================= */
 function renderAll(){
-  renderToday(); renderAlert(); renderCheck(); renderFood(); renderRutina(false); renderNow(); renderStreak(); renderWeekSum(); renderShop();
+  renderToday(); renderAlert(); renderCheck(); renderFood(); renderRutina(false); renderNow(); renderStreak(); renderWeekSum(); renderShop(); renderPreop();
   renderWeek(); renderKnee(); renderBody(); renderSleep(); renderStrength(); renderPainChart(); renderWeekChart(); renderAch(); renderHistory(); renderPhotos(); renderChat(); renderPerf(); renderCal(); renderGuided(); if(!$("v-horarios").hidden) renderHorarios();
 }
 
